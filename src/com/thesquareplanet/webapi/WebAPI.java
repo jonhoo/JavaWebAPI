@@ -110,7 +110,7 @@ class WebAPI {
      * @throws IOException If an IO error occurs when talking to the HTTP server
      */
     private void handleResponse ( HttpResponse response, URI nextURI ) throws IOException {
-        Tidy tidy = new Tidy();
+        Tidy tidy = new Tidy ( );
         tidy.setQuiet ( true );
         tidy.setShowWarnings ( false );
         tidy.setForceOutput ( true );
@@ -255,8 +255,22 @@ class WebAPI {
      * 
      * @throws RemoteFormException If the remote form contains invalid data (e.g. invalid URI as action)
      */
-    public RemoteForm getForm ( Element form ) throws RemoteFormException {
+    protected RemoteForm getForm ( Element form ) throws RemoteFormException {
         return new RemoteForm ( form );
+    }
+
+    /**
+     * Returns a RemoteForm for the form with the given ID
+     * 
+     * @param id The ID of the form to fetch
+     * @return The form found
+     * 
+     * @throws AmbiguityException If the form could not be unequivocally identified from the ID
+     * @throws XPathExpressionException If the given form id interferes with the XPath expression used to find the form
+     * @throws RemoteFormException If the remote form contains invalid data (e.g. invalid URI as action)
+     */
+    public RemoteForm getFormById ( String id ) throws XPathExpressionException, AmbiguityException, RemoteFormException {
+        return this.getForm ( "//form[@id=\"" + id.replace ( "\"", "\\\"" ) + "\"]" );
     }
 
     /**
@@ -299,23 +313,6 @@ class WebAPI {
     }
 
     /**
-     * Submits a form by "pressing" the submit button with the given name
-     * 
-     * @param form The form to submit
-     * @param submitButtonName Name of the submit button to "press"
-     * @return The current object for chaining
-     * 
-     * @throws XPathExpressionException If the given submit button name interferes with the XPath expression used to
-     *         find the button
-     * @throws AmbiguityException If the submit button could not be unequivocally identified from the given label
-     * @throws IOException If an IO error occurs when talking to the HTTP server
-     * @throws ClientProtocolException If a HTTP protocol error occurs
-     */
-    public WebAPI submitFormByButton ( RemoteForm form, String submitButtonName ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, IOException {
-        return this.submitForm ( form, "//input[@type=\"submit\"][@name=\"" + submitButtonName.replace ( "\"", "\\\"" ) + "\"]" );
-    }
-
-    /**
      * Submits the given form.
      * 
      * If submitButtonName is given, that name is also submitted as a POST/GET value
@@ -327,25 +324,22 @@ class WebAPI {
      * @return Returns this WebAPI object for chaining
      * 
      * @throws AmbiguityException If the submit button could not be unequivocally identified from the expression
-     * @throws XPathExpressionException If the given submit button
+     * @throws XPathExpressionException If the given submit button name interferes with the XPath expression used to
+     *         find the button
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws ClientProtocolException If a HTTP protocol error occurs
      */
-    public WebAPI submitForm ( RemoteForm form, String submitButtonXPath ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, IOException {
+    public WebAPI submitForm ( RemoteForm form, String submitButtonName ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, IOException {
         // Find the button, and set the given attribute if we"re pressing a button
-        if ( submitButtonXPath != null ) {
+        if ( submitButtonName != null ) {
+            String submitButtonXPath = "//input[@type=\"submit\" and @name=\"" + submitButtonName.replace ( "\"", "\\\"" ) + "\"]";
+
             NodeList matches = (NodeList) this.navigator.compile ( submitButtonXPath ).evaluate ( form.getForm ( ), XPathConstants.NODESET );
 
             if ( matches.getLength ( ) != 1 )
                 throw new AmbiguityException ( matches, submitButtonXPath );
 
-            // Fetch the element
-            Node n = matches.item ( 0 );
-
-            if ( !( n instanceof Element ) )
-                throw new ClassCastException ( "Your search expression " + submitButtonXPath + " returned a DOM Node that was not a DOM Element!" );
-
-            Element button = (Element) n;
+            Element button = (Element) matches.item ( 0 );
             form.setAttributeByName ( button.getAttribute ( "name" ), button.getAttribute ( "value" ) );
         }
 
