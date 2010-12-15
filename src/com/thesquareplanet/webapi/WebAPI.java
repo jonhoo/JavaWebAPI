@@ -12,8 +12,6 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
@@ -34,7 +32,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+import org.w3c.tidy.Tidy;
 
 /**
  * A class that emulates a regular HTTP Web client, and allows scripts to execute
@@ -71,11 +69,9 @@ class WebAPI {
      * @param The URI to navigate to, may be relative
      * @return The current object for chaining
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      * @throws IOException If an IO error occurs when talking to the HTTP server
      */
-    public WebAPI navigate ( URI uri ) throws ClientProtocolException, IOException, ParserConfigurationException, SAXException {
+    public WebAPI navigate ( URI uri ) throws ClientProtocolException, IOException {
         /**
          * Resolve the URI
          */
@@ -100,11 +96,9 @@ class WebAPI {
      * 
      * @throws URISyntaxException If the URI is not valid
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      * @throws IOException If an IO error occurs when talking to the HTTP server
      */
-    public WebAPI navigate ( String uri ) throws ClientProtocolException, IOException, ParserConfigurationException, SAXException, URISyntaxException {
+    public WebAPI navigate ( String uri ) throws ClientProtocolException, IOException, URISyntaxException {
         return this.navigate ( new URI ( uri ) );
     }
 
@@ -113,15 +107,15 @@ class WebAPI {
      * 
      * @param response The HTTP response from the new URI
      * 
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      * @throws IOException If an IO error occurs when talking to the HTTP server
      */
-    private void handleResponse ( HttpResponse response, URI nextURI ) throws ParserConfigurationException, SAXException, IOException {
-        DocumentBuilderFactory domFactory = DocumentBuilderFactory.newInstance ( );
-        domFactory.setNamespaceAware ( true ); // never forget this!
+    private void handleResponse ( HttpResponse response, URI nextURI ) throws IOException {
+        Tidy tidy = new Tidy();
+        tidy.setQuiet ( true );
+        tidy.setShowWarnings ( false );
+        tidy.setForceOutput ( true );
 
-        this.currentDocument = domFactory.newDocumentBuilder ( ).parse ( response.getEntity ( ).getContent ( ) );
+        this.currentDocument = tidy.parseDOM ( response.getEntity ( ).getContent ( ), null );
 
         this.currentURI = nextURI;
     }
@@ -136,12 +130,10 @@ class WebAPI {
      * @throws AmbiguityException If the element to be clicked could not be unequivocally identified from the expression
      * @throws URISyntaxException If the URI is not valid
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws NoTargetException If the target element has no href attribute
      */
-    public WebAPI click ( String label ) throws ClientProtocolException, XPathExpressionException, AmbiguityException, IOException, URISyntaxException, ParserConfigurationException, SAXException, NoTargetException {
+    public WebAPI click ( String label ) throws ClientProtocolException, XPathExpressionException, AmbiguityException, IOException, URISyntaxException, NoTargetException {
         return this.clickXPath ( ""
                 + "//a[text() = \"" + label.replace ( "\"", "\\\"" ) + "\"] | "
                 + "//input[@type = \"submit\"][@value = \"" + label.replace ( "\"", "\\\"" ) + "\"]" );
@@ -155,14 +147,12 @@ class WebAPI {
      * 
      * @throws URISyntaxException If the URI is not valid
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws AmbiguityException If the element to be clicked could not be unequivocally identified from the expression
      * @throws XPathExpressionException If the given expression does not compile
      * @throws NoTargetException If the target element has no href attribute
      */
-    public WebAPI clickXPath ( String expression ) throws ClientProtocolException, XPathExpressionException, AmbiguityException, IOException, URISyntaxException, ParserConfigurationException, SAXException, NoTargetException {
+    public WebAPI clickXPath ( String expression ) throws ClientProtocolException, XPathExpressionException, AmbiguityException, IOException, URISyntaxException, NoTargetException {
         this.click ( this.findElement ( expression ) );
         return this;
     }
@@ -177,12 +167,10 @@ class WebAPI {
      * @throws NoTargetException If the indicated element has no href attribute
      * @throws URISyntaxException If the URI is not valid
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws RemoteFormException If the remote form contains invalid data (e.g. invalid URI as action)
      */
-    private void click ( Element e ) throws NoTargetException, ClientProtocolException, IOException, URISyntaxException, ParserConfigurationException, SAXException {
+    private void click ( Element e ) throws NoTargetException, ClientProtocolException, IOException, URISyntaxException {
         if ( !e.hasAttribute ( "href" ) ) {
             throw new NoTargetException ( e );
         }
@@ -297,10 +285,8 @@ class WebAPI {
      * @return The current object for chaining
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      */
-    public WebAPI submitForm ( RemoteForm form ) throws ClientProtocolException, ParserConfigurationException, SAXException, IOException {
+    public WebAPI submitForm ( RemoteForm form ) throws ClientProtocolException, IOException {
         try {
             this.submitForm ( form, null );
         } catch ( XPathExpressionException e ) {
@@ -324,10 +310,8 @@ class WebAPI {
      * @throws AmbiguityException If the submit button could not be unequivocally identified from the given label
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      */
-    public WebAPI submitFormByButton ( RemoteForm form, String submitButtonName ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, ParserConfigurationException, SAXException, IOException {
+    public WebAPI submitFormByButton ( RemoteForm form, String submitButtonName ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, IOException {
         return this.submitForm ( form, "//input[@type=\"submit\"][@name=\"" + submitButtonName.replace ( "\"", "\\\"" ) + "\"]" );
     }
 
@@ -346,10 +330,8 @@ class WebAPI {
      * @throws XPathExpressionException If the given submit button
      * @throws IOException If an IO error occurs when talking to the HTTP server
      * @throws ClientProtocolException If a HTTP protocol error occurs
-     * @throws ParserConfigurationException Thrown if a DOM Document Builder cannot be created
-     * @throws SAXException If the HTML in the response cannot be parsed
      */
-    public WebAPI submitForm ( RemoteForm form, String submitButtonXPath ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, ParserConfigurationException, SAXException, IOException {
+    public WebAPI submitForm ( RemoteForm form, String submitButtonXPath ) throws XPathExpressionException, AmbiguityException, ClientProtocolException, IOException {
         // Find the button, and set the given attribute if we"re pressing a button
         if ( submitButtonXPath != null ) {
             NodeList matches = (NodeList) this.navigator.compile ( submitButtonXPath ).evaluate ( form.getForm ( ), XPathConstants.NODESET );

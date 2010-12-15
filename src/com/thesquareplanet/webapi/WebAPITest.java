@@ -25,15 +25,10 @@ public class WebAPITest {
         try {
             this.web.navigate ( "http://www.wikipedia.org" );
         } catch ( ClientProtocolException e ) {
-            e.printStackTrace();
         } catch ( IOException e ) {
-            e.printStackTrace();
         } catch ( ParserConfigurationException e ) {
-            e.printStackTrace();
         } catch ( SAXException e ) {
-            e.printStackTrace();
         } catch ( URISyntaxException e ) {
-            e.printStackTrace();
         }
         
         assert ( this.web.getSource ( ).contains ( "the free encyclopedia" ) );
@@ -44,15 +39,10 @@ public class WebAPITest {
         try {
             this.web.navigate ( "http://www.wikipedia.org" );
         } catch ( ClientProtocolException e ) {
-            e.printStackTrace();
         } catch ( IOException e ) {
-            e.printStackTrace();
         } catch ( ParserConfigurationException e ) {
-            e.printStackTrace();
         } catch ( SAXException e ) {
-            e.printStackTrace();
         } catch ( URISyntaxException e ) {
-            e.printStackTrace();
         }
         
         assert ( this.web.getSource ( ).contains ( "the free encyclopedia" ) );
